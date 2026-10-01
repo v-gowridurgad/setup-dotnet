@@ -21,6 +21,7 @@ jest.unstable_mockModule('@actions/core', () => ({
   warning: jest.fn(),
   info: jest.fn(),
   debug: jest.fn(),
+  isDebug: jest.fn(() => false),
   setOutput: jest.fn(),
   exportVariable: jest.fn((name: string, val: string) => {
     process.env[name] = val;
@@ -181,6 +182,67 @@ describe('installer tests', () => {
           : `--version ${inputVersion}`;
 
         expect(scriptArguments).toContain(expectedArgument);
+      });
+
+      it(`should not supply the verbosity argument to the installation script when debug logging is disabled`, async () => {
+        const inputVersion = '10.0.101';
+        const inputQuality = '';
+        const stdout = `Fictitious dotnet version ${inputVersion} is installed`;
+
+        (core.isDebug as jest.Mock).mockImplementation(() => false);
+        getExecOutputSpy.mockImplementation(() => {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: `${stdout}`,
+            stderr: ''
+          });
+        });
+        maxSatisfyingSpy.mockImplementation(() => inputVersion);
+
+        const dotnetInstaller = new installer.DotnetCoreInstaller(
+          inputVersion,
+          inputQuality
+        );
+
+        await dotnetInstaller.installDotnet();
+
+        const unexpectedArgument = IS_WINDOWS ? '-Verbose' : '--verbose';
+
+        for (const call of getExecOutputSpy.mock.calls) {
+          expect(call[1] as string[]).not.toContain(unexpectedArgument);
+        }
+      });
+
+      it(`should supply the verbosity argument to both installation script calls when debug logging is enabled`, async () => {
+        const inputVersion = '10.0.101';
+        const inputQuality = '';
+        const stdout = `Fictitious dotnet version ${inputVersion} is installed`;
+
+        (core.isDebug as jest.Mock).mockImplementation(() => true);
+        getExecOutputSpy.mockImplementation(() => {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: `${stdout}`,
+            stderr: ''
+          });
+        });
+        maxSatisfyingSpy.mockImplementation(() => inputVersion);
+
+        const dotnetInstaller = new installer.DotnetCoreInstaller(
+          inputVersion,
+          inputQuality
+        );
+
+        await dotnetInstaller.installDotnet();
+
+        const expectedArgument = IS_WINDOWS ? '-Verbose' : '--verbose';
+
+        expect(getExecOutputSpy.mock.calls.length).toBe(2);
+        for (const call of getExecOutputSpy.mock.calls) {
+          expect(call[1] as string[]).toContain(expectedArgument);
+        }
+
+        (core.isDebug as jest.Mock).mockImplementation(() => false);
       });
 
       it(`should warn if the 'quality' input is set and the supplied version is in A.B.C syntax`, async () => {
