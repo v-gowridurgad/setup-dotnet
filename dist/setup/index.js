@@ -45288,6 +45288,20 @@ class DotnetInstallScript {
         this.scriptArguments.push(...args);
         return this;
     }
+    /**
+     * Turns on diagnostics output of the official install scripts
+     * (`-Verbose` on Windows, `--verbose` elsewhere).
+     *
+     * Defaults to the state of the runner's step debug logging, so re-running a
+     * workflow with debug logging enabled (or setting the ACTIONS_STEP_DEBUG
+     * secret) produces the full install-script trace without any extra input.
+     */
+    useVerbosity(verbose = isDebug()) {
+        if (!verbose)
+            return this;
+        this.useArguments(utils_IS_WINDOWS ? '-Verbose' : '--verbose');
+        return this;
+    }
     // When architecture is empty/undefined, the installer auto-detects the current runner architecture.
     useArchitecture(architecture) {
         if (!architecture)
@@ -45598,6 +45612,7 @@ class DotnetCoreInstaller {
          */
         const runtimeInstallOutput = await new DotnetInstallScript()
             .useArchitecture(this.architecture)
+            .useVerbosity()
             // If dotnet CLI is already installed - avoid overwriting it
             .useArguments(utils_IS_WINDOWS ? '-SkipNonVersionedFiles' : '--skip-non-versioned-files')
             // Install only runtime + CLI
@@ -45619,6 +45634,7 @@ class DotnetCoreInstaller {
          */
         const dotnetInstallOutput = await new DotnetInstallScript()
             .useArchitecture(this.architecture)
+            .useVerbosity()
             // Don't overwrite CLI because it should be already installed
             .useArguments(utils_IS_WINDOWS ? '-SkipNonVersionedFiles' : '--skip-non-versioned-files')
             // Use version provided by user
